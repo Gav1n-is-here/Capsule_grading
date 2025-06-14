@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.9;
+
+contract CapsuleRating {
+    uint256 public constant ENTRY_FEE = 0.01 ether;
+    uint256 public constant REWARD_PERCENT = 5; // 5%
+
+    struct User {
+        uint256 timestamp;
+        uint8 rating;     // 0 means not rated
+        bool isRewarded;
+    }
+
+    User[] public users;
+    mapping(address => uint256) public userIndexMap;
+
+    event Entered(address indexed user, uint256 index);
+    event Rated(address indexed user, uint256 index, uint8 rating);
+    event Rewarded(address indexed user, uint256 amount);
+
+    function enterCapsule() public payable {
+        require(msg.value == ENTRY_FEE, "Incorrect entry fee");
+        uint256 index = users.length;
+        users.push(User(block.timestamp, 0, false));
+        userIndexMap[msg.sender] = index;
+        emit Entered(msg.sender, index);
+    }
+
+    function rateCapsule(uint256 _userIndex, uint8 _rating) public {
+        require(_rating >= 1 && _rating <= 5, "Rating must be between 1 and 5");
+
+        uint256 myIndex = users.length;
+        require(myIndex > _userIndex, "You can't rate yourself or future users");
+
+        User storage targetUser = users[_userIndex];
+        require(targetUser.rating == 0, "Already rated");
+
+        targetUser.rating = _rating;
+
+        if (_rating >= 4 && !targetUser.isRewarded) {
+            payable(msg.sender).transfer(ENTRY_FEE * REWARD_PERCENT / 100);
+            targetUser.isRewarded = true;
+            emit Rewarded(msg.sender, ENTRY_FEE * REWARD_PERCENT / 100);
+        }
+
+        emit Rated(msg.sender, _userIndex, _rating);
+    }
+
+    function getUserCount() public view returns (uint256) {
+        return users.length;
+    }
+}

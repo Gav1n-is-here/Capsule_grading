@@ -1,0 +1,112 @@
+import React, { useEffect, useState } from "react";
+import "./App.css";
+import { ethers } from "ethers";
+import contractABI from "./contracts/CapsuleRating.json";
+
+// 替换为你的部署地址
+const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+
+function App() {
+  const [account, setAccount] = useState("");
+  const [contract, setContract] = useState(null);
+  const [userCount, setUserCount] = useState(0);
+  const [rating, setRating] = useState(0);
+  const [isRated, setIsRated] = useState(false);
+
+  useEffect(() => {
+    async function init() {
+      if (window.ethereum) {
+        try {
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          await provider.send("eth_requestAccounts", []);
+          const signer = provider.getSigner();
+
+          const contract = new ethers.Contract(
+            contractAddress,
+            contractABI.abi,
+            signer
+          );
+
+          setContract(contract);
+
+          const address = await signer.getAddress();
+          setAccount(address);
+
+          const count = await contract.getUserCount();
+          setUserCount(count.toNumber());
+        } catch (error) {
+          console.error("初始化失败:", error);
+          alert("MetaMask 初始化失败，请检查钱包连接");
+        }
+      } else {
+        alert("请安装 MetaMask！");
+      }
+    }
+
+    init();
+  }, []);
+
+  async function handleEnter() {
+    if (!contract) return;
+
+    try {
+      const tx = await contract.enterCapsule({
+        value: ethers.utils.parseEther("0.01"),
+      });
+      await tx.wait();
+      alert("成功入住！");
+      const count = await contract.getUserCount();
+      setUserCount(count.toNumber());
+    } catch (error) {
+      console.error(error);
+      alert("支付失败，请检查是否已连接 MetaMask 并有足够的 ETH");
+    }
+  }
+
+  async function handleRate(ratingValue) {
+    if (!contract) return;
+
+    const index = userCount - 1; // 上一个人
+
+    try {
+      const tx = await contract.rateCapsule(index, ratingValue);
+      await tx.wait();
+      alert(`评分完成，你评了 ${ratingValue} 星`);
+      setIsRated(true);
+      setRating(ratingValue);
+    } catch (error) {
+      console.error(error);
+      alert("评分失败，请稍后再试");
+    }
+  }
+
+  return (
+    <div className="App">
+      <h1>胶囊仓评价系统</h1>
+      <img src="/capsule.jpg" alt="Capsule" width="300" />
+
+      {!account ? (
+        <p>请连接 MetaMask</p>
+      ) : (
+        <>
+          <button onClick={handleEnter}>入住并支付 0.01 ETH</button>
+
+          {userCount > 0 && !isRated && (
+            <div>
+              <h3>请为上一位顾客打分：</h3>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button key={star} onClick={() => handleRate(star)}>
+                  {star} 星
+                </button>
+              ))}
+            </div>
+          )}
+
+          {isRated && <p>你已打分为 {rating} 星</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default App;
