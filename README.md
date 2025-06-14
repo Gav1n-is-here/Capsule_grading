@@ -13,9 +13,10 @@ react部分：frontend/src/App.js
 Try running some of the following tasks:
 
 ```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.js
+nvm alias default 22.14.0
+npm install
+npx hardhat compile
+cp artifacts/contracts/Capsule.sol/Capsule.json frontend/src/contracts/
+npx hardhat console --network localhost
+npm start
 ```
